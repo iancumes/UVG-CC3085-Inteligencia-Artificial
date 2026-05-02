@@ -29,12 +29,18 @@ npm run dev
 
 The app runs on `http://localhost:3000`.
 
+To run it successfully, the backend from `../server` must already be running on `http://localhost:8000` unless you change the environment variables below.
+
 ## Environment variables
 
 ```bash
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 NEXT_PUBLIC_WS_BASE_URL=ws://localhost:8000
 ```
+
+`NEXT_PUBLIC_API_BASE_URL` is used by `lib/api.ts`.
+
+`NEXT_PUBLIC_WS_BASE_URL` is used by `lib/ws.ts`.
 
 ## Authentication flow
 
@@ -107,6 +113,15 @@ The frontend keeps the API layer typed but intentionally tolerant:
 - Round details should include `pairings` and any result metadata.
 
 If your backend uses slightly different field names, update `admin/lib/types.ts` and the mapping logic in `admin/lib/api.ts`.
+
+## Folder guide
+
+- `app/`: App Router pages and layouts
+- `components/`: visual building blocks for boards, tables, and page shells
+- `components/ui/`: reusable UI primitives such as buttons, cards, inputs, and tables
+- `lib/`: auth helpers, typed API calls, WebSocket client logic, and shared types
+
+Each of those directories also has its own `README.md`.
 
 ## Docker
 
