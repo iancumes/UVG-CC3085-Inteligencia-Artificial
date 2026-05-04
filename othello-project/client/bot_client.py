@@ -19,13 +19,13 @@ class BotClient:
     def __init__(
         self,
         server_url: str,
-        tournament_id: int,
+        tournament_name: str,
         username: str,
         choose_move: ChooseMove,
         reconnect_delay_seconds: float = 1.0,
     ) -> None:
         self.server_url = server_url.rstrip("/")
-        self.tournament_id = tournament_id
+        self.tournament_name = tournament_name
         self.username = username
         self.choose_move = choose_move
         self.reconnect_delay_seconds = reconnect_delay_seconds
@@ -95,7 +95,7 @@ class BotClient:
 
     def _enroll(self) -> None:
         enroll_url = f"{self.server_url}/players"
-        payload = json.dumps({"tournament_id": self.tournament_id, "name": self.username}).encode("utf-8")
+        payload = json.dumps({"tournament_name": self.tournament_name, "name": self.username}).encode("utf-8")
         http_request = request.Request(
             enroll_url,
             data=payload,
@@ -116,7 +116,7 @@ class BotClient:
         self.token = str(body["client_token"])
         logger.info(
             "Enrolled in tournament %s as %s (player_id=%s)",
-            body["tournament_id"],
+            body.get("tournament_name", self.tournament_name),
             body["name"],
             self.player_id,
         )
@@ -125,7 +125,7 @@ class BotClient:
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Reusable Othello bot client")
     parser.add_argument("--server-url", default="http://localhost:8000")
-    parser.add_argument("--tournament-id", type=int, required=True)
+    parser.add_argument("--tournament-name", required=True)
     parser.add_argument("--username", required=True)
     return parser
 
@@ -139,7 +139,7 @@ def main() -> None:
     args = build_arg_parser().parse_args()
     client = BotClient(
         server_url=args.server_url,
-        tournament_id=args.tournament_id,
+        tournament_name=args.tournament_name,
         username=args.username,
         choose_move=_missing_bot,
     )

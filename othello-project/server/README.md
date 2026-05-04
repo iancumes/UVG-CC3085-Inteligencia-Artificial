@@ -50,7 +50,7 @@ uvicorn server.main:app --reload
 2. Login through `POST /admin/login`.
 3. Create a tournament.
 4. Open registration.
-5. Start bots so they enroll through `POST /players`.
+5. Start bots so they enroll through `POST /players` using the tournament name.
 6. Close registration.
 7. Start the tournament and rounds through the admin endpoints.
 

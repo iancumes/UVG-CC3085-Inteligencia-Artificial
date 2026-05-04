@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class PlayerCreate(BaseModel):
-    tournament_id: int
+    tournament_name: str
     name: str
 
 
@@ -28,6 +28,7 @@ class PlayerRead(BaseModel):
 
 class PlayerEnrollmentResponse(BaseModel):
     tournament_id: int
+    tournament_name: str
     player_id: int
     name: str
     client_token: str

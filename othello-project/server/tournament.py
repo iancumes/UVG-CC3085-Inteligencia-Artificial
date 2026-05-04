@@ -134,13 +134,23 @@ class TournamentManager:
 
         turn.future.set_result(message.move.lower())
 
-    def enroll_player(self, tournament_id: int, username: str) -> dict[str, Any]:
+    def enroll_player(self, tournament_name: str, username: str) -> dict[str, Any]:
+        normalized_tournament_name = tournament_name.strip()
         normalized_name = username.strip()
+        if not normalized_tournament_name:
+            raise HTTPException(status_code=400, detail="Tournament name is required")
         if not normalized_name:
             raise HTTPException(status_code=400, detail="Username is required")
 
         with self.session_factory() as session:
-            tournament = self._get_tournament_or_404(session, tournament_id)
+            tournaments = session.exec(select(Tournament).where(Tournament.name == normalized_tournament_name)).all()
+            if not tournaments:
+                raise HTTPException(status_code=404, detail="Tournament not found")
+            if len(tournaments) > 1:
+                raise HTTPException(status_code=409, detail="Tournament name is ambiguous")
+
+            tournament = tournaments[0]
+            tournament_id = tournament.id
             if tournament.registration_status != "open":
                 raise HTTPException(status_code=400, detail="Tournament registration is closed")
 
@@ -160,6 +170,7 @@ class TournamentManager:
             session.refresh(player)
             payload = {
                 "tournament_id": tournament_id,
+                "tournament_name": tournament.name,
                 "player_id": player.id,
                 "name": player.name,
                 "client_token": player.client_token,

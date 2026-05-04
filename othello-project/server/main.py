@@ -82,7 +82,7 @@ def create_app(database_url: str | None = None, move_timeout_seconds: float | No
 
     @app.post("/players", response_model=PlayerEnrollmentResponse)
     async def create_player(payload: PlayerCreate):
-        enrollment = manager.enroll_player(payload.tournament_id, payload.name)
+        enrollment = manager.enroll_player(payload.tournament_name, payload.name)
         return PlayerEnrollmentResponse(**enrollment)
 
     @app.post("/tournament/start", response_model=TournamentCreateResponse)

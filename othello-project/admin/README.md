@@ -60,7 +60,7 @@ password: admin123
 Tournament enrollment is username-based per tournament. Registration must be opened first, and each bot should connect using:
 
 ```bash
-python -m client.sample_bot --server-url http://localhost:8000 --tournament-id 1 --username bot-a
+python -m client.sample_bot --server-url http://localhost:8000 --tournament-name "Spring Open" --username bot-a
 ```
 
 ## Expected backend API shapes

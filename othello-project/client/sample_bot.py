@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time 
+import random
 
 from client.bot_client import BotClient, build_arg_parser
 
@@ -11,7 +12,7 @@ def choose_move(board: list[list[str]], color: str, legal_moves: list[str]) -> s
     if not legal_moves:
         return "pass"
     time.sleep(2)
-    return legal_moves[0]
+    return random.choice(legal_moves)
 
 
 def main() -> None:
@@ -19,7 +20,7 @@ def main() -> None:
     args = build_arg_parser().parse_args()
     client = BotClient(
         server_url=args.server_url,
-        tournament_id=args.tournament_id,
+        tournament_name=args.tournament_name,
         username=args.username,
         choose_move=choose_move,
     )
