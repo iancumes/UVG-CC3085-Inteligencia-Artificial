@@ -29,8 +29,8 @@ def _create_started_tournament(client: TestClient) -> tuple[int, int, dict[str, 
     return tournament_id, create_response.json()["totalRounds"], headers
 
 
-def _enroll_player(client: TestClient, tournament_id: int, name: str) -> tuple[int, str]:
-    response = client.post("/players", json={"tournament_id": tournament_id, "name": name})
+def _enroll_player(client: TestClient, tournament_name: str, name: str) -> tuple[int, str]:
+    response = client.post("/players", json={"tournament_name": tournament_name, "name": name})
     assert response.status_code == 200
     return response.json()["player_id"], response.json()["client_token"]
 
@@ -44,8 +44,8 @@ def _wait_for_message_of_type(websocket, message_type: str) -> dict:
 
 def _play_round_with_two_players(client: TestClient, black_ws_handler: Callable[[dict, any], None] | None = None) -> tuple[str, dict, dict]:
     tournament_id, _, headers = _create_started_tournament(client)
-    black_id, black_token = _enroll_player(client, tournament_id, "black")
-    white_id, white_token = _enroll_player(client, tournament_id, "white")
+    black_id, black_token = _enroll_player(client, "Flow Cup", "black")
+    white_id, white_token = _enroll_player(client, "Flow Cup", "white")
     start_tournament_response = client.post(f"/admin/tournaments/{tournament_id}/start", headers=headers)
     assert start_tournament_response.status_code == 200
     round_id = start_tournament_response.json()["rounds"][0]["id"]

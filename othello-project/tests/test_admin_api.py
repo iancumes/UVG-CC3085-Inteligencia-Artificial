@@ -17,8 +17,8 @@ def _admin_headers(client: TestClient) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _register_player(client: TestClient, tournament_id: int, name: str) -> int:
-    response = client.post("/players", json={"tournament_id": tournament_id, "name": name})
+def _register_player(client: TestClient, tournament_name: str, name: str) -> int:
+    response = client.post("/players", json={"tournament_name": tournament_name, "name": name})
     assert response.status_code == 200
     return response.json()["player_id"]
 
@@ -28,6 +28,25 @@ def test_admin_login_and_default_credentials(tmp_path) -> None:
         login = client.post("/admin/login", json={"username": "admin", "password": "admin123"})
         assert login.status_code == 200
         assert "token" in login.json()
+
+
+def test_player_can_register_by_tournament_name(tmp_path) -> None:
+    with _make_client(tmp_path) as client:
+        headers = _admin_headers(client)
+        create_response = client.post(
+            "/admin/tournaments",
+            json={"name": "Named Cup", "total_rounds": 1},
+            headers=headers,
+        )
+        assert create_response.status_code == 200
+        tournament_id = create_response.json()["id"]
+        client.post(f"/admin/tournaments/{tournament_id}/start-registration", headers=headers)
+
+        response = client.post("/players", json={"tournament_name": "Named Cup", "name": "alpha"})
+
+        assert response.status_code == 200
+        assert response.json()["tournament_id"] == tournament_id
+        assert response.json()["tournament_name"] == "Named Cup"
 
 
 def test_admin_tournament_lifecycle_and_queries(tmp_path) -> None:
@@ -46,8 +65,8 @@ def test_admin_tournament_lifecycle_and_queries(tmp_path) -> None:
         assert start_registration.status_code == 200
         assert start_registration.json()["registrationStatus"] == "open"
 
-        _register_player(client, tournament_id, "alpha")
-        _register_player(client, tournament_id, "beta")
+        _register_player(client, "Spring Cup", "alpha")
+        _register_player(client, "Spring Cup", "beta")
 
         close_registration = client.post(f"/admin/tournaments/{tournament_id}/close-registration", headers=headers)
         assert close_registration.status_code == 200
@@ -106,13 +125,13 @@ def test_admin_can_start_multiple_tournaments_simultaneously(tmp_path) -> None:
             headers=headers,
         ).json()["id"]
 
-        for tournament_id, first_name, second_name in (
-            (tournament_one, "alpha", "beta"),
-            (tournament_two, "gamma", "delta"),
+        for tournament_id, tournament_name, first_name, second_name in (
+            (tournament_one, "Morning Cup", "alpha", "beta"),
+            (tournament_two, "Evening Cup", "gamma", "delta"),
         ):
             client.post(f"/admin/tournaments/{tournament_id}/start-registration", headers=headers)
-            _register_player(client, tournament_id, first_name)
-            _register_player(client, tournament_id, second_name)
+            _register_player(client, tournament_name, first_name)
+            _register_player(client, tournament_name, second_name)
             response = client.post(f"/admin/tournaments/{tournament_id}/start", headers=headers)
             assert response.status_code == 200
             assert response.json()["status"] == "active"
@@ -191,8 +210,8 @@ def test_admin_game_crud(tmp_path) -> None:
             headers=headers,
         ).json()["id"]
         client.post(f"/admin/tournaments/{tournament_id}/start-registration", headers=headers)
-        first_player_id = _register_player(client, tournament_id, "alpha")
-        second_player_id = _register_player(client, tournament_id, "beta")
+        first_player_id = _register_player(client, "Games Cup", "alpha")
+        second_player_id = _register_player(client, "Games Cup", "beta")
         client.post(f"/admin/tournaments/{tournament_id}/start", headers=headers)
         round_id = client.get(f"/admin/tournaments/{tournament_id}", headers=headers).json()["rounds"][0]["id"]
 
@@ -234,8 +253,8 @@ def test_admin_player_forfeit(tmp_path) -> None:
             headers=headers,
         ).json()["id"]
         client.post(f"/admin/tournaments/{tournament_id}/start-registration", headers=headers)
-        first_player_id = _register_player(client, tournament_id, "alpha")
-        _register_player(client, tournament_id, "beta")
+        first_player_id = _register_player(client, "Forfeit Cup", "alpha")
+        _register_player(client, "Forfeit Cup", "beta")
         client.post(f"/admin/tournaments/{tournament_id}/start", headers=headers)
         round_id = client.get(f"/admin/tournaments/{tournament_id}", headers=headers).json()["rounds"][0]["id"]
         client.post(f"/admin/rounds/{round_id}/start", headers=headers)

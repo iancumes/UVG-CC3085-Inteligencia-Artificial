@@ -6,6 +6,8 @@ This directory contains the reusable Python bot client and the sample bot.
 
 - `bot_client.py`: transport layer that enrolls a bot, opens the WebSocket, receives turn messages, and sends moves
 - `sample_bot.py`: example bot implementation with a very simple move selector
+- `competitive_bot.py`: tournament bot entrypoint that uses the stronger Othello AI
+- `othello_ai.py`: minimax/negamax, alpha-beta pruning, iterative deepening, and heuristics
 
 ## Dependencies
 
@@ -32,6 +34,23 @@ python -m client.sample_bot --server-url http://localhost:8000 --tournament-name
 ```
 
 You can run multiple bots in separate terminals by changing `--username`.
+
+## How to run the competitive bot
+
+Use the same command shape as the sample bot, replacing the module name:
+
+```bash
+cd othello-project
+python -m client.competitive_bot --server-url http://localhost:8000 --tournament-name "Spring Open" --username bot-a
+```
+
+For the remote test server shared in class:
+
+```bash
+python -m client.competitive_bot --server-url https://d9df-190-14-11-2.ngrok-free.app --tournament-name test_mayo11 --username your-username
+```
+
+More details are documented in `../docs/othello_bot.md`.
 
 ## How the client works
 
