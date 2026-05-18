@@ -6,7 +6,7 @@ Desde la raiz del proyecto:
 
 ```bash
 cd othello-project
-python -m client.competitive_bot \
+.venv/bin/python -m client.competitive_bot \
   --server-url http://localhost:8000 \
   --tournament-name "Nombre del torneo" \
   --username "mi-bot"
@@ -16,7 +16,7 @@ Para el servidor de prueba que compartio el catedratico:
 
 ```bash
 cd othello-project
-python -m client.competitive_bot \
+.venv/bin/python -m client.competitive_bot \
   --server-url https://d9df-190-14-11-2.ngrok-free.app \
   --tournament-name test_mayo11 \
   --username "tu-usuario"
@@ -25,7 +25,7 @@ python -m client.competitive_bot \
 Para el dia del torneo se usa el mismo formato que el ejemplo de clase. La unica diferencia es reemplazar `client.sample_bot` por `client.competitive_bot`:
 
 ```bash
-python -m client.competitive_bot \
+.venv/bin/python -m client.competitive_bot \
   --server-url "URL_DEL_CATEDRATICO" \
   --tournament-name "NOMBRE_DEL_TORNEO" \
   --username "tu-usuario"
@@ -34,7 +34,7 @@ python -m client.competitive_bot \
 Ejemplo con el formato que dio en clase:
 
 ```bash
-python -m client.competitive_bot \
+.venv/bin/python -m client.competitive_bot \
   --server-url https://c792-190-56-194-12.ngrok-free.app \
   --tournament-name FIRST_TEST \
   --username "tu-usuario"
@@ -44,9 +44,57 @@ El servidor remoto lo levanta el catedratico. Para competir no se corre `uvicorn
 
 Parametros utiles:
 
-- `--move-budget-seconds`: presupuesto por turno. El valor por defecto es `2.65`, dejando margen antes del limite de 3 segundos.
-- `--max-depth`: profundidad maxima de busqueda. El valor por defecto es `8`.
+- `--move-budget-seconds`: presupuesto por turno. El valor por defecto es `2.75`, usando casi todo el limite de 3 segundos y dejando margen para red/serializacion.
+- `--max-depth`: profundidad maxima de busqueda. El valor por defecto es `64`; en la practica el bot se detiene por tiempo usando profundizacion iterativa.
 - `--log-level`: nivel de logs, por ejemplo `INFO` o `DEBUG`.
+
+## Solucion de errores de Python
+
+En macOS puede pasar esto:
+
+```text
+zsh: command not found: python
+ModuleNotFoundError: No module named 'websockets'
+```
+
+La causa es que `python` no existe en tu terminal, y `python3` apunta al Python del sistema, no al entorno virtual del proyecto. Este proyecto ya tiene dependencias instaladas en `.venv`, por eso el comando correcto es:
+
+```bash
+cd othello-project
+.venv/bin/python -m client.competitive_bot \
+  --server-url http://localhost:8000 \
+  --tournament-name "Othello" \
+  --username "bot-competitivo"
+```
+
+Tambien puedes activar el entorno virtual una vez por terminal:
+
+```bash
+cd othello-project
+source .venv/bin/activate
+python -m client.competitive_bot \
+  --server-url http://localhost:8000 \
+  --tournament-name "Othello" \
+  --username "bot-competitivo"
+```
+
+Si `.venv` no existiera o estuviera incompleto:
+
+```bash
+cd othello-project
+python3.11 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+```
+
+Verificacion rapida:
+
+```bash
+cd othello-project
+.venv/bin/python - <<'PY'
+import websockets
+print(websockets.__version__)
+PY
+```
 
 Archivos agregados:
 
@@ -83,7 +131,7 @@ Abrir `http://localhost:3000`, iniciar sesion con `admin` / `admin123`, crear un
 
 ```bash
 cd othello-project
-python -m client.competitive_bot \
+.venv/bin/python -m client.competitive_bot \
   --server-url http://localhost:8000 \
   --tournament-name "Nombre del torneo local" \
   --username "bot-competitivo"
@@ -92,7 +140,7 @@ python -m client.competitive_bot \
 Para tener oponente rapido:
 
 ```bash
-python -m client.sample_bot \
+.venv/bin/python -m client.sample_bot \
   --server-url http://localhost:8000 \
   --tournament-name "Nombre del torneo local" \
   --username "bot-random"
@@ -142,6 +190,8 @@ La busqueda completa del arbol no es viable dentro de 3 segundos. Por eso el bot
 - Profundizacion iterativa: busca a profundidad 1, luego 2, luego 3, etc. Si el tiempo se acaba, siempre conserva la mejor jugada de la ultima profundidad completada.
 - Heuristicas: estima la calidad de tableros no terminales para decidir sin llegar al final de la partida.
 
+La configuracion actual esta pensada para competir: el bot intenta profundizar hasta `64`, pero normalmente se corta por el presupuesto de `2.75` segundos. Esto evita quedarse en una profundidad fija baja y permite aprovechar mejor posiciones donde la poda alfa-beta reduce mucho el arbol.
+
 ## Heuristica
 
 La funcion de evaluacion combina varios criterios:
@@ -149,6 +199,7 @@ La funcion de evaluacion combina varios criterios:
 - Esquinas: son muy valiosas porque no se pueden voltear.
 - Movilidad: favorece tener mas movimientos disponibles que el oponente.
 - Matriz posicional: premia casillas estrategicas y penaliza casillas peligrosas cerca de esquinas vacias.
+- Acceso inmediato a esquinas: penaliza movimientos que dejan una esquina disponible al oponente y premia movimientos que crean una esquina propia.
 - Frontera: penaliza fichas expuestas junto a espacios vacios.
 - Estabilidad aproximada: premia fichas conectadas a esquinas propias por los bordes.
 - Diferencia de fichas: tiene poco peso al inicio y mucho peso al final.
@@ -165,7 +216,7 @@ funcion elegir_movimiento(tablero, color, movimientos_legales):
         retornar "pass"
 
     mejor_movimiento = mejor_movimiento_rapido(movimientos_legales)
-    limite = tiempo_actual + 2.65 segundos
+    limite = tiempo_actual + 2.75 segundos
 
     para profundidad desde 1 hasta max_depth:
         si tiempo_actual >= limite:

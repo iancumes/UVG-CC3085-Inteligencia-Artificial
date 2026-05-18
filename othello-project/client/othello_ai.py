@@ -39,6 +39,7 @@ POSITION_WEIGHTS = (
 )
 
 CORNERS = ((0, 0), (0, 7), (7, 0), (7, 7))
+CORNER_MOVES = frozenset(("a1", "h1", "a8", "h8"))
 CORNER_DANGER = {
     (0, 0): (((0, 1), 35), ((1, 0), 35), ((1, 1), 55)),
     (0, 7): (((0, 6), 35), ((1, 7), 35), ((1, 6), 55)),
@@ -216,6 +217,10 @@ def _is_corner(row: int, col: int) -> bool:
     return (row, col) in CORNERS
 
 
+def _corner_move_count(moves: tuple[str, ...]) -> int:
+    return sum(move in CORNER_MOVES for move in moves)
+
+
 def _corner_danger_penalty(board: BoardTuple, move: str) -> int:
     row, col = _move_to_position(move)
     penalty = 0
@@ -268,16 +273,17 @@ def _stable_edge_count(board: BoardTuple, color: str) -> int:
 class OthelloAI:
     def __init__(
         self,
-        move_budget_seconds: float = 2.65,
-        max_depth: int = 8,
-        exact_empty_threshold: int = 10,
+        move_budget_seconds: float = 2.75,
+        max_depth: int = 64,
+        exact_empty_threshold: int = 14,
     ) -> None:
         self.move_budget_seconds = move_budget_seconds
         self.max_depth = max_depth
         self.exact_empty_threshold = exact_empty_threshold
         self.deadline = 0.0
         self.nodes = 0
-        self._transposition: dict[tuple[BoardTuple, str, int], float] = {}
+        self._transposition: dict[tuple[BoardTuple, str, int], tuple[float, str | None]] = {}
+        self._move_hints: dict[tuple[BoardTuple, str], str] = {}
         self.last_stats = SearchStats(move="pass", score=0.0, completed_depth=0, nodes=0, elapsed_seconds=0.0)
 
     def choose_move(self, board: Board, color: str, legal_moves_from_server: list[str]) -> str:
@@ -300,19 +306,22 @@ class OthelloAI:
         completed_depth = 0
         self.nodes = 0
         self._transposition.clear()
+        self._move_hints.clear()
         self.deadline = start + max(0.0, self.move_budget_seconds)
 
         target_depth = self._target_depth(board_tuple)
+        root_hint: str | None = None
         for depth in range(1, target_depth + 1):
             if time.perf_counter() >= self.deadline:
                 break
             try:
-                move, score_value = self._search_root(board_tuple, color, provided_moves, depth)
+                move, score_value = self._search_root(board_tuple, color, provided_moves, depth, root_hint)
             except SearchTimeout:
                 break
 
             if move in provided_moves:
                 best_move = move
+                root_hint = move
                 best_score = score_value
                 completed_depth = depth
 
@@ -331,7 +340,7 @@ class OthelloAI:
     def _target_depth(self, board: BoardTuple) -> int:
         empty_squares = _empty_count(board)
         if empty_squares <= self.exact_empty_threshold:
-            return max(self.max_depth, empty_squares + 2)
+            return min(self.max_depth, empty_squares + 2)
         return self.max_depth
 
     def _search_root(
@@ -340,9 +349,10 @@ class OthelloAI:
         color: str,
         provided_moves: Iterable[str],
         depth: int,
+        root_hint: str | None,
     ) -> tuple[str, float]:
         self._check_time()
-        ordered_moves = self._ordered_moves(board, color, tuple(provided_moves))
+        ordered_moves = self._ordered_moves(board, color, tuple(provided_moves), preferred_move=root_hint)
         alpha = -math.inf
         beta = math.inf
         best_move = ordered_moves[0]
@@ -389,11 +399,13 @@ class OthelloAI:
         cache_key = (board, color, depth)
         cached = self._transposition.get(cache_key)
         if cached is not None:
-            return cached
+            return cached[0]
 
         best_score = -math.inf
+        best_move: str | None = None
         completed_without_cutoff = True
-        for move in self._ordered_moves(board, color, moves):
+        preferred_move = self._move_hints.get((board, color))
+        for move in self._ordered_moves(board, color, moves, preferred_move=preferred_move):
             child = _apply_move_tuple(board, move, color)
             next_color = _next_turn_color(child, color)
             if next_color is None:
@@ -405,13 +417,15 @@ class OthelloAI:
 
             if score_value > best_score:
                 best_score = score_value
+                best_move = move
+                self._move_hints[(board, color)] = move
             alpha = max(alpha, score_value)
             if alpha >= beta:
                 completed_without_cutoff = False
                 break
 
         if completed_without_cutoff:
-            self._transposition[cache_key] = best_score
+            self._transposition[cache_key] = (best_score, best_move)
         return best_score
 
     def _best_static_move(self, board: BoardTuple, color: str, moves: tuple[str, ...]) -> str | None:
@@ -419,8 +433,18 @@ class OthelloAI:
             return None
         return self._ordered_moves(board, color, moves)[0]
 
-    def _ordered_moves(self, board: BoardTuple, color: str, moves: tuple[str, ...]) -> list[str]:
-        return sorted(moves, key=lambda move: self._move_order_score(board, color, move), reverse=True)
+    def _ordered_moves(
+        self,
+        board: BoardTuple,
+        color: str,
+        moves: tuple[str, ...],
+        preferred_move: str | None = None,
+    ) -> list[str]:
+        ordered = sorted(moves, key=lambda move: self._move_order_score(board, color, move), reverse=True)
+        if preferred_move in ordered:
+            ordered.remove(preferred_move)
+            ordered.insert(0, preferred_move)
+        return ordered
 
     def _move_order_score(self, board: BoardTuple, color: str, move: str) -> float:
         row, col = _move_to_position(move)
@@ -436,9 +460,15 @@ class OthelloAI:
             return -math.inf
 
         flips = len(_captured_discs_tuple(board, move, color))
+        opponent_moves = _legal_moves_tuple(child, opponent(color))
+        own_moves_after = _legal_moves_tuple(child, color)
         score_value += flips * 4
-        score_value -= len(_legal_moves_tuple(child, opponent(color))) * 25
-        score_value += len(_legal_moves_tuple(child, color)) * 8
+        score_value -= len(opponent_moves) * 25
+        score_value += len(own_moves_after) * 8
+        score_value -= 5_000 * _corner_move_count(opponent_moves)
+        score_value += 2_500 * _corner_move_count(own_moves_after)
+        if _next_turn_color(child, color) == color:
+            score_value += 350
         return score_value
 
     def _evaluate(self, board: BoardTuple, color: str) -> float:
@@ -484,6 +514,8 @@ class OthelloAI:
         opponent_corners = sum(board[row][col] == other for row, col in CORNERS)
         own_mobility = len(_legal_moves_tuple(board, color))
         opponent_mobility = len(_legal_moves_tuple(board, other))
+        own_corner_moves = _corner_move_count(_legal_moves_tuple(board, color))
+        opponent_corner_moves = _corner_move_count(_legal_moves_tuple(board, other))
         own_frontier = _frontier_count(board, color)
         opponent_frontier = _frontier_count(board, other)
         own_stable = _stable_edge_count(board, color)
@@ -497,6 +529,7 @@ class OthelloAI:
             - frontier_weight * _ratio(own_frontier, opponent_frontier)
             + position_weight * positional
             + corner_weight * (own_corners - opponent_corners)
+            + 900 * (own_corner_moves - opponent_corner_moves)
             + stable_weight * (own_stable - opponent_stable)
             + danger_score
         )

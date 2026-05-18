@@ -58,6 +58,24 @@ def test_ai_prioritizes_available_corner() -> None:
     assert ai.choose_move(board, BLACK, moves) == "a1"
 
 
+def test_ai_avoids_move_that_gives_immediate_corner() -> None:
+    board = [
+        list("........"),
+        list("..W....."),
+        list("..WWW.W."),
+        list("B.WWBBBB"),
+        list("BBWWBWB."),
+        list("B..WBB.."),
+        list("..WWBW.."),
+        list("...W...."),
+    ]
+    ai = OthelloAI(move_budget_seconds=0.05, max_depth=64)
+    moves = legal_moves(board, BLACK)
+
+    assert "g7" in moves
+    assert ai.choose_move(board, BLACK, moves) != "g7"
+
+
 def test_ai_respects_small_time_budget() -> None:
     ai = OthelloAI(move_budget_seconds=0.005, max_depth=8)
     board = create_initial_board()
