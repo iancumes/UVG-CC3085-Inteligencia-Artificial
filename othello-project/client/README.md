@@ -7,7 +7,7 @@ This directory contains the reusable Python bot client and the sample bot.
 - `bot_client.py`: transport layer that enrolls a bot, opens the WebSocket, receives turn messages, and sends moves
 - `sample_bot.py`: example bot implementation with a very simple move selector
 - `competitive_bot.py`: tournament bot entrypoint that uses the stronger Othello AI
-- `othello_ai.py`: minimax/negamax, alpha-beta pruning, iterative deepening, and heuristics
+- `othello_ai.py`: bitboard Othello engine with negamax/PVS, alpha-beta pruning, transposition table, iterative deepening, and heuristics
 
 ## Dependencies
 

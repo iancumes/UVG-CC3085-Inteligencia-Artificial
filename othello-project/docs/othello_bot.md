@@ -98,7 +98,7 @@ PY
 
 Archivos agregados:
 
-- `client/othello_ai.py`: reglas locales de Othello, evaluacion heuristica, minimax/negamax, poda alfa-beta y manejo de tiempo.
+- `client/othello_ai.py`: reglas locales de Othello con bitboards, evaluacion heuristica, negamax/PVS, poda alfa-beta, tabla de transposicion y manejo de tiempo.
 - `client/competitive_bot.py`: cliente ejecutable que conecta el bot al servidor del torneo.
 - `tests/test_othello_ai.py`: pruebas unitarias y una partida simulada contra movimientos aleatorios.
 
@@ -184,10 +184,13 @@ Luego abrir `http://localhost:3000` e iniciar sesion con las credenciales que el
 
 Othello se puede modelar como un problema de busqueda adversarial: el estado es el tablero, las acciones son los movimientos legales, el modelo de transicion voltea fichas, y el objetivo es terminar con mas fichas que el oponente. Como ambos jugadores toman decisiones opuestas, el bot usa minimax en forma negamax.
 
-La busqueda completa del arbol no es viable dentro de 3 segundos. Por eso el bot usa tres tecnicas:
+La busqueda completa del arbol no es viable dentro de 3 segundos. Por eso el bot usa estas tecnicas:
 
 - Poda alfa-beta: evita explorar ramas que ya no pueden mejorar la decision final.
+- Principal Variation Search: despues de encontrar una linea prometedora, prueba alternativas con ventanas estrechas y solo re-busca completo si parecen mejorar.
+- Tabla de transposicion: guarda posiciones ya evaluadas con su profundidad, cota y mejor movimiento para reutilizarlas si se llega al mismo tablero por otra secuencia.
 - Profundizacion iterativa: busca a profundidad 1, luego 2, luego 3, etc. Si el tiempo se acaba, siempre conserva la mejor jugada de la ultima profundidad completada.
+- Bitboards: representa las fichas con enteros de 64 bits para generar movimientos y contar fichas mas rapido que recorriendo listas 8x8.
 - Heuristicas: estima la calidad de tableros no terminales para decidir sin llegar al final de la partida.
 
 La configuracion actual esta pensada para competir: el bot intenta profundizar hasta `64`, pero normalmente se corta por el presupuesto de `2.75` segundos. Esto evita quedarse en una profundidad fija baja y permite aprovechar mejor posiciones donde la poda alfa-beta reduce mucho el arbol.
@@ -266,6 +269,26 @@ funcion negamax(tablero, color, profundidad, alfa, beta):
             romper
 
     retornar mejor
+```
+
+### Tabla de transposicion
+
+```text
+funcion buscar(tablero, profundidad, alfa, beta):
+    entrada = tabla[tablero]
+    si entrada existe y entrada.profundidad >= profundidad:
+        si entrada es exacta:
+            retornar entrada.valor
+        si entrada es cota inferior:
+            alfa = max(alfa, entrada.valor)
+        si entrada es cota superior:
+            beta = min(beta, entrada.valor)
+        si alfa >= beta:
+            retornar entrada.valor
+
+    valor = negamax_con_pvs(tablero, profundidad, alfa, beta)
+    guardar valor, tipo_de_cota, profundidad y mejor_movimiento
+    retornar valor
 ```
 
 ## Relacion con temas de clase

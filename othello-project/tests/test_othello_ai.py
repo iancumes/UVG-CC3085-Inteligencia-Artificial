@@ -20,6 +20,8 @@ def test_ai_rules_match_initial_othello_position() -> None:
 
     assert legal_moves(board, BLACK) == ["d3", "c4", "f5", "e6"]
     assert legal_moves(board, WHITE) == ["e3", "f4", "c5", "d6"]
+    assert legal_moves(board, "black") == ["d3", "c4", "f5", "e6"]
+    assert legal_moves(board, "white") == ["e3", "f4", "c5", "d6"]
 
 
 def test_ai_apply_move_flips_all_captured_discs() -> None:
@@ -42,7 +44,7 @@ def test_ai_never_returns_move_outside_server_legal_moves() -> None:
     board = create_initial_board()
     moves = legal_moves(board, BLACK)
 
-    assert ai.choose_move(board, BLACK, moves) in moves
+    assert ai.choose_move(board, "black", moves) in moves
 
 
 def test_ai_prioritizes_available_corner() -> None:
