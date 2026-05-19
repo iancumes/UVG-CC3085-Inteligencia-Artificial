@@ -44,7 +44,8 @@ El servidor remoto lo levanta el catedratico. Para competir no se corre `uvicorn
 
 Parametros utiles:
 
-- `--move-budget-seconds`: presupuesto por turno. El valor por defecto es `2.75`, usando casi todo el limite de 3 segundos y dejando margen para red/serializacion.
+- `--move-budget-seconds`: presupuesto maximo por turno. El valor por defecto es `2.35`, para dejar margen real antes del limite de 3 segundos.
+- `--deadline-safety-ms`: margen de seguridad restado al `deadline_ms` del servidor. El valor por defecto es `650`.
 - `--max-depth`: profundidad maxima de busqueda. El valor por defecto es `64`; en la practica el bot se detiene por tiempo usando profundizacion iterativa.
 - `--log-level`: nivel de logs, por ejemplo `INFO` o `DEBUG`.
 
@@ -193,7 +194,7 @@ La busqueda completa del arbol no es viable dentro de 3 segundos. Por eso el bot
 - Bitboards: representa las fichas con enteros de 64 bits para generar movimientos y contar fichas mas rapido que recorriendo listas 8x8.
 - Heuristicas: estima la calidad de tableros no terminales para decidir sin llegar al final de la partida.
 
-La configuracion actual esta pensada para competir: el bot intenta profundizar hasta `64`, pero normalmente se corta por el presupuesto de `2.75` segundos. Esto evita quedarse en una profundidad fija baja y permite aprovechar mejor posiciones donde la poda alfa-beta reduce mucho el arbol.
+La configuracion actual esta pensada para competir sin perder por tiempo: el bot intenta profundizar hasta `64`, pero normalmente se corta por el presupuesto de `2.35` segundos o por el `deadline_ms` real del servidor menos `650 ms`. Esto evita quedarse en una profundidad fija baja y deja margen para serializar y enviar la jugada.
 
 ## Heuristica
 
@@ -219,7 +220,7 @@ funcion elegir_movimiento(tablero, color, movimientos_legales):
         retornar "pass"
 
     mejor_movimiento = mejor_movimiento_rapido(movimientos_legales)
-    limite = tiempo_actual + 2.75 segundos
+    limite = tiempo_actual + min(2.35 segundos, deadline_del_servidor - margen)
 
     para profundidad desde 1 hasta max_depth:
         si tiempo_actual >= limite:

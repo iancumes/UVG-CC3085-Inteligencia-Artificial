@@ -339,7 +339,7 @@ def _stable_edge_count(bits: int) -> int:
 class OthelloAI:
     def __init__(
         self,
-        move_budget_seconds: float = 2.75,
+        move_budget_seconds: float = 2.35,
         max_depth: int = 64,
         exact_empty_threshold: int = 14,
     ) -> None:
@@ -351,7 +351,13 @@ class OthelloAI:
         self._tt: dict[tuple[int, int], TTEntry] = {}
         self.last_stats = SearchStats(move="pass", score=0.0, completed_depth=0, nodes=0, elapsed_seconds=0.0)
 
-    def choose_move(self, board: Board, color: str, legal_moves_from_server: list[str]) -> str:
+    def choose_move(
+        self,
+        board: Board,
+        color: str,
+        legal_moves_from_server: list[str],
+        time_limit_seconds: float | None = None,
+    ) -> str:
         start = time.perf_counter()
         normalized_color = _normalize_color(color)
         provided_moves = tuple(dict.fromkeys(move.lower() for move in legal_moves_from_server))
@@ -372,7 +378,8 @@ class OthelloAI:
         completed_depth = 0
         self.nodes = 0
         self._tt.clear()
-        self.deadline = start + max(0.0, self.move_budget_seconds)
+        budget_seconds = self.move_budget_seconds if time_limit_seconds is None else time_limit_seconds
+        self.deadline = start + max(0.0, budget_seconds)
 
         target_depth = self._target_depth(player, other)
         previous_best = best_move

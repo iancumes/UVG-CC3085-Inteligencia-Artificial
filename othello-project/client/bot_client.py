@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import inspect
 import json
 import logging
 from collections.abc import Awaitable, Callable
@@ -12,7 +13,7 @@ import websockets
 
 logger = logging.getLogger(__name__)
 
-ChooseMove = Callable[[list[list[str]], str, list[str]], str | Awaitable[str]]
+ChooseMove = Callable[..., str | Awaitable[str]]
 
 
 class BotClient:
@@ -28,6 +29,7 @@ class BotClient:
         self.tournament_name = tournament_name
         self.username = username
         self.choose_move = choose_move
+        self._choose_move_accepts_deadline = self._accepts_deadline_argument(choose_move)
         self.reconnect_delay_seconds = reconnect_delay_seconds
         self.player_id: int | None = None
         self.token: str | None = None
@@ -58,6 +60,7 @@ class BotClient:
                     payload["board"],
                     payload["color"],
                     payload["legal_moves"],
+                    int(payload.get("deadline_ms", 3000)),
                 )
                 await websocket.send(
                     json.dumps(
@@ -87,11 +90,39 @@ class BotClient:
             else:
                 logger.info("Received message: %s", payload)
 
-    async def _choose_move(self, board: list[list[str]], color: str, legal_moves: list[str]) -> str:
-        result = self.choose_move(board, color, legal_moves)
+    async def _choose_move(
+        self,
+        board: list[list[str]],
+        color: str,
+        legal_moves: list[str],
+        deadline_ms: int,
+    ) -> str:
+        if self._choose_move_accepts_deadline:
+            result = self.choose_move(board, color, legal_moves, deadline_ms)
+        else:
+            result = self.choose_move(board, color, legal_moves)
         if asyncio.iscoroutine(result):
             return await result
         return result
+
+    @staticmethod
+    def _accepts_deadline_argument(choose_move: ChooseMove) -> bool:
+        try:
+            signature = inspect.signature(choose_move)
+        except (TypeError, ValueError):
+            return False
+
+        parameters = signature.parameters.values()
+        positional_count = 0
+        for parameter in parameters:
+            if parameter.kind == inspect.Parameter.VAR_POSITIONAL:
+                return True
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            ):
+                positional_count += 1
+        return positional_count >= 4
 
     def _enroll(self) -> None:
         enroll_url = f"{self.server_url}/players"

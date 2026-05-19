@@ -41,14 +41,16 @@ Use the same command shape as the sample bot, replacing the module name:
 
 ```bash
 cd othello-project
-python -m client.competitive_bot --server-url http://localhost:8000 --tournament-name "Spring Open" --username bot-a
+.venv/bin/python -m client.competitive_bot --server-url http://localhost:8000 --tournament-name "Spring Open" --username bot-a
 ```
 
 For the remote test server shared in class:
 
 ```bash
-python -m client.competitive_bot --server-url https://d9df-190-14-11-2.ngrok-free.app --tournament-name test_mayo11 --username your-username
+.venv/bin/python -m client.competitive_bot --server-url https://d9df-190-14-11-2.ngrok-free.app --tournament-name test_mayo11 --username your-username
 ```
+
+The competitive bot reads the server `deadline_ms` on each turn and keeps a safety margin before the 3-second timeout.
 
 More details are documented in `../docs/othello_bot.md`.
 

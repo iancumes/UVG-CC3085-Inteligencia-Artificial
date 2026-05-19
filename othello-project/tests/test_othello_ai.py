@@ -91,6 +91,20 @@ def test_ai_respects_small_time_budget() -> None:
     assert elapsed < 0.2
 
 
+def test_ai_turn_budget_override_is_respected() -> None:
+    ai = OthelloAI(move_budget_seconds=1.0, max_depth=64)
+    board = create_initial_board()
+    moves = legal_moves(board, BLACK)
+
+    start = time.perf_counter()
+    move = ai.choose_move(board, BLACK, moves, time_limit_seconds=0.01)
+    elapsed = time.perf_counter() - start
+
+    assert move in moves
+    assert elapsed < 0.2
+    assert ai.last_stats.elapsed_seconds < 0.2
+
+
 def test_ai_vs_random_game_has_no_invalid_moves() -> None:
     ai = OthelloAI(move_budget_seconds=0.01, max_depth=2)
     rng = random.Random(3085)
