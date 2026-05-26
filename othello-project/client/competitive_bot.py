@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 def main() -> None:
     parser = build_arg_parser()
     parser.description = "Competitive Othello bot for CC3085"
-    parser.add_argument("--move-budget-seconds", type=float, default=2.35)
-    parser.add_argument("--deadline-safety-ms", type=int, default=650)
+    parser.add_argument("--move-budget-seconds", type=float, default=2.30)
+    parser.add_argument("--deadline-safety-ms", type=int, default=700)
     parser.add_argument("--max-depth", type=int, default=64)
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
